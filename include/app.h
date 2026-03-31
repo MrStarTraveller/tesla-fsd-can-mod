@@ -10,6 +10,16 @@
 #include <Arduino.h>
 #endif
 
+#if !defined(NATIVE_BUILD)
+#if defined(PIN_LED)
+constexpr int kStatusLedPin = PIN_LED;
+#elif defined(LED_BUILTIN)
+constexpr int kStatusLedPin = LED_BUILTIN;
+#else
+constexpr int kStatusLedPin = -1;
+#endif
+#endif
+
 #if defined(HW4)
 using SelectedHandler = HW4Handler;
 #elif defined(HW3)
@@ -35,7 +45,9 @@ static void signalInitFault() {
     const unsigned long now = millis();
     if (now - lastToggleMs >= 250) {
         ledOn = !ledOn;
-        digitalWrite(PIN_LED, ledOn ? LOW : HIGH);
+        if (kStatusLedPin >= 0) {
+            digitalWrite(kStatusLedPin, ledOn ? LOW : HIGH);
+        }
         lastToggleMs = now;
     }
 }
@@ -43,8 +55,10 @@ static void signalInitFault() {
 
 template<typename Driver>
 static void appSetup(std::unique_ptr<Driver> drv, const char* readyMsg) {
-    pinMode(PIN_LED, OUTPUT);
-    digitalWrite(PIN_LED, HIGH);
+    if (kStatusLedPin >= 0) {
+        pinMode(kStatusLedPin, OUTPUT);
+        digitalWrite(kStatusLedPin, HIGH);
+    }
 
     appHandler = std::make_unique<SelectedHandler>();
     delay(1500);
@@ -86,8 +100,12 @@ static void appLoop() {
 
     CanFrame frame;
     while (appDriver->read(frame)) {
-        digitalWrite(PIN_LED, LOW);
+        if (kStatusLedPin >= 0) {
+            digitalWrite(kStatusLedPin, LOW);
+        }
         appHandler->handleMessage(frame, *appDriver);
     }
-    digitalWrite(PIN_LED, HIGH);
+    if (kStatusLedPin >= 0) {
+        digitalWrite(kStatusLedPin, HIGH);
+    }
 }
