@@ -62,17 +62,18 @@ public:
             if (isBusOff()) recover();
             return false;
         }
+        memset(frame.data, 0, sizeof(frame.data));
         frame.id  = msg.identifier;
-        frame.dlc = msg.data_length_code;
-        memcpy(frame.data, msg.data, msg.data_length_code);
+        frame.dlc = msg.data_length_code > 8 ? 8 : msg.data_length_code;
+        memcpy(frame.data, msg.data, frame.dlc);
         return true;
     }
 
     void send(const CanFrame& frame) override {
         twai_message_t msg = {};
         msg.identifier = frame.id;
-        msg.data_length_code = frame.dlc;
-        memcpy(msg.data, frame.data, frame.dlc);
+        msg.data_length_code = frame.dlc > 8 ? 8 : frame.dlc;
+        memcpy(msg.data, frame.data, msg.data_length_code);
 
         if (twai_transmit(&msg, pdMS_TO_TICKS(10)) != ESP_OK) {
             if (isBusOff()) recover();

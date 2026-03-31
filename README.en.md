@@ -26,6 +26,34 @@ This allows you to activate an FSD subscription from anywhere in the world.
 
 This firmware runs on an Adafruit Feather with CAN bus support (RP2040 CAN with MCP2515, M4 CAN Express with native ATSAME51 CAN, or any ESP32 board with a built-in TWAI peripheral). It intercepts specific CAN bus messages to enable and configure Full Self-Driving (FSD). Additionally, ASS (Actually Smart Summon) is no longer restricted by EU regulations.
 
+## Repository Layout
+
+This repository contains two different kinds of content: the C++ firmware that is compiled and flashed onto the board, and local-only tooling used for development, building, and testing.
+
+### Files that become board firmware
+
+- `RP2040CAN.ino`: Arduino IDE entry point
+- `src/main.cpp`: PlatformIO entry point
+- `include/app.h`: shared setup and main loop
+- `include/handlers.h`: vehicle logic for `LEGACY`, `HW3`, and `HW4`
+- `include/can_helpers.h` and `include/can_frame_types.h`: CAN helpers and frame definitions
+- `include/drivers/mcp2515_driver.h`
+- `include/drivers/same51_driver.h`
+- `include/drivers/twai_driver.h`
+
+These files are part of the actual firmware image that gets built for the board.
+
+### Local-only build, test, and developer tooling
+
+- `platformio.ini`: PlatformIO project configuration
+- `test/`: host-side unit tests, not flashed to the board
+- `include/drivers/mock_driver.h`: mock driver used only by tests
+- `scripts/pio-local.ps1`: local PlatformIO wrapper that keeps caches and tool downloads inside the workspace as much as possible
+- `scripts/native_toolchain.py`: Windows toolchain glue for the `native` test environment
+- `guides/`: documentation and images
+
+These files are only used on the development machine and are not included in the final firmware.
+
 🚗 Core Function
 - Intercepts specific CAN bus messages
 - Re-transmits them onto the vehicle bus
@@ -227,14 +255,16 @@ Then uncomment the line that matches your **vehicle**:
 2. Build for your board:
    ```bash
    # Adafruit Feather RP2040 CAN
-   pio run -e feather_rp2040_can
+   powershell -ExecutionPolicy Bypass -File .\scripts\pio-local.ps1 run -e feather_rp2040_can
 
    # Adafruit Feather M4 CAN Express (ATSAME51)
-   pio run -e feather_m4_can
+   powershell -ExecutionPolicy Bypass -File .\scripts\pio-local.ps1 run -e feather_m4_can
 
    # ESP32 with TWAI (CAN) peripheral
-   pio run -e esp32_twai
+   powershell -ExecutionPolicy Bypass -File .\scripts\pio-local.ps1 run -e esp32_twai
    ```
+
+   If you do not care where PlatformIO keeps its default cache and toolchain directories, you can still use plain `pio run ...`.
 
 #### Flash
 
@@ -258,8 +288,10 @@ pio run -e esp32_twai --target upload
 Unit tests run on your host machine — no hardware required:
 
 ```bash
-pio test -e native
+powershell -ExecutionPolicy Bypass -File .\scripts\pio-local.ps1 test -e native
 ```
+
+If your local PlatformIO and compiler setup is already configured the way you want, using plain `pio test -e native` is also fine.
 
 ### Wiring
 
@@ -348,7 +380,7 @@ RP2040CAN.ino             # Arduino IDE entry point (uses same headers)
 ### Running Tests
 
 ```bash
-pio test -e native
+powershell -ExecutionPolicy Bypass -File .\scripts\pio-local.ps1 test -e native
 ```
 
 Tests run on your host machine — no hardware required. They cover all handler logic including FSD activation, nag suppression, speed profile mapping, and bit manipulation correctness.

@@ -28,6 +28,34 @@ https://discord.gg/ZTQKAUTd2F
 
 这份固件运行在支持 CAN 总线的 Adafruit Feather 板卡上，支持 RP2040 CAN + MCP2515、M4 CAN Express + ATSAME51 原生 CAN，以及任意带原生 TWAI 外设的 ESP32 板卡。它会拦截特定的 CAN 报文，以启用并配置 Full Self-Driving（FSD）。此外，ASS（Actually Smart Summon）也不再受到欧盟限制。
 
+## 仓库结构说明
+
+这个仓库同时包含两类内容：一类是最终会编译并写入板卡的 C++ 固件；另一类是仅在本地开发机上使用的构建、测试和辅助脚本。
+
+### 会写入板卡的固件部分
+
+- `RP2040CAN.ino`：Arduino IDE 入口
+- `src/main.cpp`：PlatformIO 入口
+- `include/app.h`：通用启动与主循环
+- `include/handlers.h`：车辆逻辑，包含 `LEGACY`、`HW3`、`HW4`
+- `include/can_helpers.h`、`include/can_frame_types.h`：报文辅助逻辑与帧结构
+- `include/drivers/mcp2515_driver.h`
+- `include/drivers/same51_driver.h`
+- `include/drivers/twai_driver.h`
+
+这些文件会参与固件编译，最终生成写入板卡的二进制。
+
+### 仅用于本地构建、测试和开发辅助
+
+- `platformio.ini`：PlatformIO 构建配置
+- `test/`：宿主机单元测试，不会写入板卡
+- `include/drivers/mock_driver.h`：仅供测试使用的 mock 驱动
+- `scripts/pio-local.ps1`：本地 PlatformIO 启动脚本，用于把缓存和工具目录尽量放在工作区
+- `scripts/native_toolchain.py`：Windows 下 `native` 测试环境的工具链适配脚本
+- `guides/`：说明文档与图片
+
+这些文件只在开发机使用，不会进入最终固件。
+
 ### 核心功能
 
 - 拦截特定 CAN 总线报文
@@ -233,14 +261,16 @@ https://discord.gg/ZTQKAUTd2F
 2. 为你的板卡执行构建：
    ```bash
    # Adafruit Feather RP2040 CAN
-   pio run -e feather_rp2040_can
+   powershell -ExecutionPolicy Bypass -File .\scripts\pio-local.ps1 run -e feather_rp2040_can
 
    # Adafruit Feather M4 CAN Express (ATSAME51)
-   pio run -e feather_m4_can
+   powershell -ExecutionPolicy Bypass -File .\scripts\pio-local.ps1 run -e feather_m4_can
 
    # ESP32 with TWAI (CAN) peripheral
-   pio run -e esp32_twai
+   powershell -ExecutionPolicy Bypass -File .\scripts\pio-local.ps1 run -e esp32_twai
    ```
+
+   如果你不介意把 PlatformIO 的缓存与工具链放到系统默认目录，也可以直接使用 `pio run ...`。
 
 #### 烧录
 
@@ -264,8 +294,10 @@ pio run -e esp32_twai --target upload
 单元测试运行在你的本机上，不需要实际硬件：
 
 ```bash
-pio test -e native
+powershell -ExecutionPolicy Bypass -File .\scripts\pio-local.ps1 test -e native
 ```
+
+如果你已经自行配置好了 PlatformIO 和本机编译器，也可以继续直接使用 `pio test -e native`。
 
 ### 接线
 
@@ -351,7 +383,7 @@ RP2040CAN.ino             # Arduino IDE 入口（复用同一套头文件）
 ### 运行测试
 
 ```bash
-pio test -e native
+powershell -ExecutionPolicy Bypass -File .\scripts\pio-local.ps1 test -e native
 ```
 
 测试运行在你的宿主机上，不需要实际硬件。覆盖内容包括 FSD 激活、nag suppression、速度档位映射，以及 bit 操作正确性等 handler 逻辑。

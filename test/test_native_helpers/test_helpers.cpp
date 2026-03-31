@@ -47,6 +47,20 @@ void test_setBit_does_not_affect_other_bytes() {
     TEST_ASSERT_EQUAL_HEX8(0xBB, f.data[1]);
 }
 
+void test_setBit_ignores_negative_bit_index() {
+    CanFrame f = {};
+    f.data[0] = 0x12;
+    setBit(f, -1, true);
+    TEST_ASSERT_EQUAL_HEX8(0x12, f.data[0]);
+}
+
+void test_setBit_ignores_out_of_range_bit_index() {
+    CanFrame f = {};
+    f.data[7] = 0x34;
+    setBit(f, 64, true);
+    TEST_ASSERT_EQUAL_HEX8(0x34, f.data[7]);
+}
+
 // --- readMuxID ---
 
 void test_readMuxID_extracts_lower_3_bits() {
@@ -138,6 +152,8 @@ int main() {
     RUN_TEST(test_setBit_sets_bit_in_byte7);
     RUN_TEST(test_setBit_clears_bit);
     RUN_TEST(test_setBit_does_not_affect_other_bytes);
+    RUN_TEST(test_setBit_ignores_negative_bit_index);
+    RUN_TEST(test_setBit_ignores_out_of_range_bit_index);
 
     RUN_TEST(test_readMuxID_extracts_lower_3_bits);
     RUN_TEST(test_readMuxID_masks_upper_bits);

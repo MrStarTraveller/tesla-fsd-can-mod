@@ -2,6 +2,7 @@
 
 #include <SPI.h>
 #include <mcp2515.h>
+#include <algorithm>
 #include <memory>
 #include "../can_frame_types.h"
 #include "can_driver.h"
@@ -44,15 +45,16 @@ public:
         if (mcp_.readMessage(&raw) != MCP2515::ERROR_OK) return false;
         frame.id  = raw.can_id;
         frame.dlc = raw.can_dlc;
-        memcpy(frame.data, raw.data, 8);
+        memcpy(frame.data, raw.data, sizeof(frame.data));
         return true;
     }
 
     void send(const CanFrame& frame) override {
         can_frame raw;
         raw.can_id  = frame.id;
-        raw.can_dlc = frame.dlc;
-        memcpy(raw.data, frame.data, 8);
+        raw.can_dlc = static_cast<uint8_t>(std::min<int>(frame.dlc, sizeof(raw.data)));
+        memset(raw.data, 0, sizeof(raw.data));
+        memcpy(raw.data, frame.data, raw.can_dlc);
         mcp_.sendMessage(&raw);
     }
 

@@ -41,9 +41,10 @@ public:
         int packetSize = can_.parsePacket();
         if (packetSize <= 0) return false;
 
+        memset(frame.data, 0, sizeof(frame.data));
         frame.id  = can_.packetId();
-        frame.dlc = static_cast<uint8_t>(packetSize);
-        for (int i = 0; i < packetSize && i < 8; i++) {
+        frame.dlc = static_cast<uint8_t>(packetSize > 8 ? 8 : packetSize);
+        for (int i = 0; i < frame.dlc; i++) {
             frame.data[i] = static_cast<uint8_t>(can_.read());
         }
         return true;
@@ -51,7 +52,7 @@ public:
 
     void send(const CanFrame& frame) override {
         can_.beginPacket(frame.id);
-        can_.write(frame.data, frame.dlc);
+        can_.write(frame.data, frame.dlc > 8 ? 8 : frame.dlc);
         can_.endPacket();
     }
 
