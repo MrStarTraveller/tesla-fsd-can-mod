@@ -100,9 +100,10 @@ Select your hardware in RP2040CAN.ino via the #define HW directive:
 
 - **Steady on**: no CAN frame is currently being processed; the firmware is idle and waiting
 - **Briefly off**: a received CAN frame is currently being processed
-- **Fast blinking continuously**: initialization failed and the firmware did not enter normal CAN operation
+- **Fast blinking continuously (about 250 ms cadence)**: initialization failed and the firmware did not enter normal CAN operation
+- **Slower blinking continuously (about 500 ms cadence)**: a new driver fault or recovery event was detected at runtime and the firmware entered runtime fault indication mode
 
-The LED currently represents “activity state + initialization fault state”, not a full CAN bus health indicator.
+The LED currently represents “activity state + initialization fault state + runtime fault indication”, not a full CAN bus health indicator.
 
 ### CAN Message Details
 
