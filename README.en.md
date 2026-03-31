@@ -96,6 +96,14 @@ Select your hardware in RP2040CAN.ino via the #define HW directive:
 - **Nag suppression** — clears the hands-on-wheel nag bit.
 - Debug output is printed over Serial at 115200 baud when `enablePrint` is `true`.
 
+### LED Behaviour
+
+- **Steady on**: no CAN frame is currently being processed; the firmware is idle and waiting
+- **Briefly off**: a received CAN frame is currently being processed
+- **Fast blinking continuously**: initialization failed and the firmware did not enter normal CAN operation
+
+The LED currently represents “activity state + initialization fault state”, not a full CAN bus health indicator.
+
 ### CAN Message Details
 
 The table below shows exactly which CAN messages each hardware variant monitors and what modifications are made.
@@ -348,6 +356,20 @@ The project uses an abstract `CanDriver` interface so that all vehicle logic (ha
 - Vehicle-specific behavior (FSD enable, nag suppression, speed profiles)
 - Serial debug output
 
+### Driver Diagnostics
+
+The driver layer now keeps a lightweight set of diagnostic counters to help with post-build troubleshooting on real hardware, including:
+
+- initialization failures
+- filter configuration failures
+- interrupt configuration failures
+- no-message reads
+- read failures
+- send failures
+- bus recovery events
+
+These diagnostics are mainly intended for development and future debugging hooks. They are not printed automatically by default.
+
 ## Development & Testing
 
 The project uses [PlatformIO](https://platformio.org/) with the [Unity](https://github.com/ThrowTheSwitch/Unity) test framework.
@@ -369,6 +391,7 @@ include/
 src/
   main.cpp                # PlatformIO entry point
 test/
+  test_native_driver_diagnostics/ # Driver diagnostics interface tests
   test_native_helpers/    # Tests for bit manipulation helpers
   test_native_legacy/     # LegacyHandler tests
   test_native_hw3/        # HW3Handler tests

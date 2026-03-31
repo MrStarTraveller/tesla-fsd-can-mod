@@ -23,9 +23,23 @@ using SelectedHandler = LegacyHandler;
 static std::unique_ptr<CanDriver> appDriver;
 static std::unique_ptr<CarManagerBase> appHandler;
 static bool appReady = false;
+static bool appInitFault = false;
 
 static volatile bool frameReady = true;
 static void canISR() { frameReady = true; }
+
+#ifndef NATIVE_BUILD
+static void signalInitFault() {
+    static unsigned long lastToggleMs = 0;
+    static bool ledOn = false;
+    const unsigned long now = millis();
+    if (now - lastToggleMs >= 250) {
+        ledOn = !ledOn;
+        digitalWrite(PIN_LED, ledOn ? LOW : HIGH);
+        lastToggleMs = now;
+    }
+}
+#endif
 
 template<typename Driver>
 static void appSetup(std::unique_ptr<Driver> drv, const char* readyMsg) {
@@ -40,6 +54,7 @@ static void appSetup(std::unique_ptr<Driver> drv, const char* readyMsg) {
 
     appDriver = std::move(drv);
     appReady = appDriver->init();
+    appInitFault = !appReady;
     if (!appReady) {
         Serial.println("CAN init failed");
         return;
@@ -56,6 +71,11 @@ static void appSetup(std::unique_ptr<Driver> drv, const char* readyMsg) {
 template<typename Driver>
 static void appLoop() {
     if (!appReady) {
+#ifndef NATIVE_BUILD
+        if (appInitFault) {
+            signalInitFault();
+        }
+#endif
         return;
     }
 

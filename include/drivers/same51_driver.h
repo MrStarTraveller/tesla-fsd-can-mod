@@ -9,17 +9,25 @@ public:
     static constexpr bool kSupportsISR = false;
 
     bool init() override {
+        resetDiagnostics();
         pinMode(PIN_CAN_STANDBY, OUTPUT);
         digitalWrite(PIN_CAN_STANDBY, false);
         pinMode(PIN_CAN_BOOSTEN, OUTPUT);
         digitalWrite(PIN_CAN_BOOSTEN, true);
 
-        if (!can_.begin(500000)) return false;
+        if (!can_.begin(500000)) {
+            recordInitFailure();
+            return false;
+        }
+        clearLastError();
         return true;
     }
 
     void setFilters(const uint32_t* ids, uint8_t count) override {
-        if (count == 0) return;
+        if (count == 0) {
+            recordFilterFailure();
+            return;
+        }
         // CANSAME5x has only 1 standard filter element, so compute a combined
         // mask that accepts all requested IDs. Bits that differ between any
         // pair of IDs are masked out (don't-care).
@@ -30,6 +38,7 @@ public:
         uint32_t mask = ~differ & 0x7FF;
         uint32_t base = ids[0] & mask;
         can_.filter(static_cast<int>(base), static_cast<int>(mask));
+        clearLastError();
     }
 
     // SAME51 uses register reads (no SPI overhead) and an 8-deep HW FIFO.
@@ -39,7 +48,10 @@ public:
 
     bool read(CanFrame& frame) override {
         int packetSize = can_.parsePacket();
-        if (packetSize <= 0) return false;
+        if (packetSize <= 0) {
+            recordNoMessageRead();
+            return false;
+        }
 
         memset(frame.data, 0, sizeof(frame.data));
         frame.id  = can_.packetId();
@@ -47,13 +59,22 @@ public:
         for (int i = 0; i < frame.dlc; i++) {
             frame.data[i] = static_cast<uint8_t>(can_.read());
         }
+        clearLastError();
         return true;
     }
 
     void send(const CanFrame& frame) override {
-        can_.beginPacket(frame.id);
-        can_.write(frame.data, frame.dlc > 8 ? 8 : frame.dlc);
-        can_.endPacket();
+        if (!can_.beginPacket(frame.id)) {
+            recordSendFailure();
+            return;
+        }
+        const uint8_t dlc = frame.dlc > 8 ? 8 : frame.dlc;
+        const size_t written = can_.write(frame.data, dlc);
+        if (written != dlc || !can_.endPacket()) {
+            recordSendFailure();
+            return;
+        }
+        clearLastError();
     }
 
 private:

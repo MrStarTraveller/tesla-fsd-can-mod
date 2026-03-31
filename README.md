@@ -102,6 +102,14 @@ https://discord.gg/ZTQKAUTd2F
 - **Nag suppression**：清除手离方向盘提醒位。
 - 当 `enablePrint` 为 `true` 时，会通过 `115200` 波特率输出串口调试信息。
 
+### LED 状态说明
+
+- **常亮**：当前没有正在处理的 CAN 帧，固件处于空闲等待状态
+- **短暂熄灭**：正在处理接收到的 CAN 帧
+- **持续快闪**：初始化失败，固件没有进入正常 CAN 工作状态
+
+LED 目前表示的是“活动状态 + 初始化故障状态”，不是完整的总线健康状态指示灯。
+
 ### CAN 报文细节
 
 下表列出了不同硬件类型会监听哪些 CAN 报文，以及具体会做哪些修改。
@@ -351,6 +359,20 @@ powershell -ExecutionPolicy Bypass -File .\scripts\pio-local.ps1 test -e native
 - 车辆相关行为，例如 FSD 启用、nag suppression、速度档位
 - 串口调试输出
 
+### 驱动诊断信息
+
+驱动层现在维护了一组轻量诊断计数，用于帮助定位构建后在实车上的初始化或通信问题，包括：
+
+- 初始化失败次数
+- 过滤器配置失败次数
+- 中断配置失败次数
+- 无报文读取次数
+- 读取失败次数
+- 发送失败次数
+- 总线恢复次数
+
+这套诊断信息主要用于开发和后续扩展，目前默认不会自动打印到串口。
+
 ## 开发与测试
 
 项目使用 [PlatformIO](https://platformio.org/) 和 [Unity](https://github.com/ThrowTheSwitch/Unity) 测试框架。
@@ -372,6 +394,7 @@ include/
 src/
   main.cpp                # PlatformIO 入口
 test/
+  test_native_driver_diagnostics/ # 驱动诊断接口测试
   test_native_helpers/    # bit 操作辅助函数测试
   test_native_legacy/     # LegacyHandler 测试
   test_native_hw3/        # HW3Handler 测试

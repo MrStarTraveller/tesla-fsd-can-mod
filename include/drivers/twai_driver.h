@@ -12,6 +12,7 @@ public:
         : txPin_(txPin), rxPin_(rxPin) {}
 
     bool init() override {
+        resetDiagnostics();
         g_config_ = TWAI_GENERAL_CONFIG_DEFAULT(txPin_, rxPin_, TWAI_MODE_NORMAL);
         g_config_.rx_queue_len = 32;
         g_config_.tx_queue_len = 16;
@@ -19,13 +20,23 @@ public:
         t_config_ = TWAI_TIMING_CONFIG_500KBITS();
         f_config_ = TWAI_FILTER_CONFIG_ACCEPT_ALL();
 
-        if (twai_driver_install(&g_config_, &t_config_, &f_config_) != ESP_OK) return false;
-        if (twai_start() != ESP_OK) return false;
+        if (twai_driver_install(&g_config_, &t_config_, &f_config_) != ESP_OK) {
+            recordInitFailure();
+            return false;
+        }
+        if (twai_start() != ESP_OK) {
+            recordInitFailure();
+            return false;
+        }
+        clearLastError();
         return true;
     }
 
     void setFilters(const uint32_t* ids, uint8_t count) override {
-        if (count == 0) return;
+        if (count == 0) {
+            recordFilterFailure();
+            return;
+        }
 
         // Compute combined mask: bits that differ between any pair of IDs
         // are "don't care" in the acceptance mask.
@@ -46,8 +57,11 @@ public:
         // Reinstall driver with the updated filter
         twai_stop();
         twai_driver_uninstall();
-        twai_driver_install(&g_config_, &t_config_, &f_config_);
-        twai_start();
+        if (twai_driver_install(&g_config_, &t_config_, &f_config_) != ESP_OK || twai_start() != ESP_OK) {
+            recordFilterFailure();
+            return;
+        }
+        clearLastError();
     }
 
     // ESP32 TWAI uses a FreeRTOS queue (32 deep) — twai_receive() with
@@ -59,13 +73,19 @@ public:
     bool read(CanFrame& frame) override {
         twai_message_t msg;
         if (twai_receive(&msg, 0) != ESP_OK) {
-            if (isBusOff()) recover();
+            if (isBusOff()) {
+                recordReadFailure(CanDriverError::BusOff);
+                recover();
+            } else {
+                recordNoMessageRead();
+            }
             return false;
         }
         memset(frame.data, 0, sizeof(frame.data));
         frame.id  = msg.identifier;
         frame.dlc = msg.data_length_code > 8 ? 8 : msg.data_length_code;
         memcpy(frame.data, msg.data, frame.dlc);
+        clearLastError();
         return true;
     }
 
@@ -76,8 +96,14 @@ public:
         memcpy(msg.data, frame.data, msg.data_length_code);
 
         if (twai_transmit(&msg, pdMS_TO_TICKS(10)) != ESP_OK) {
-            if (isBusOff()) recover();
+            recordSendFailure();
+            if (isBusOff()) {
+                setLastError(CanDriverError::BusOff);
+                recover();
+            }
+            return;
         }
+        clearLastError();
     }
 
 private:
@@ -92,6 +118,7 @@ private:
         twai_driver_uninstall();
         twai_driver_install(&g_config_, &t_config_, &f_config_);
         twai_start();
+        recordRecovery();
     }
 
     gpio_num_t txPin_;
