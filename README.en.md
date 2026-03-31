@@ -8,6 +8,8 @@
 
 > **Why is this public?** Some sellers charge up to 500 € for a solution like this. In our opinion, that is massively overpriced. The board costs around 20 €, and even with labor factored in, a fair price is no more than 50 €. This project exists so nobody has to overpay.
 
+Credits for the original repo go to https://gitlab.com/Starmixcraft/tesla-fsd-can-mod
+
 ## 📌 Prerequisites
 
 **You must have an active FSD package on the vehicle** — either purchased or subscribed. This board enables the FSD functionality on the CAN bus level, but the vehicle still needs a valid FSD entitlement from Tesla.
